@@ -8,11 +8,11 @@ POST /employee/\<fname\>/\<lname\>/\<bdate\>/\<gender\>/\<salary\>/\<dno\>/\<tit
 response :
 success/invalid dept_no
  
-GET /employee_details 
+GET /employee_details <br>
 response: 
 json with departments.dept_no, departments.dept_name, employees.emp_no, employees.first_name, employees.last_name,from_date,to_date 
  
-GET /department_details 
+GET /department_details <br>
 response: 
 json with employees.emp_no, first_name, last_name, dept_emp.dept_no, departments.dept_name, title, salary 
 
