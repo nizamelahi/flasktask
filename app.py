@@ -1,17 +1,20 @@
-import sqlite3
 from flask import Flask, render_template
 from flask import Flask, render_template, jsonify
 from werkzeug.exceptions import abort
 from flaskext.mysql import MySQL
 from datetime import date
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 app = Flask(__name__)
 
 
-app.config['MYSQL_DATABASE_USER'] = 'nizamelahi'
-app.config['MYSQL_DATABASE_PASSWORD'] = '1ft1kh2r'
-app.config['MYSQL_DATABASE_DB'] = 'employees'
-app.config['MYSQL_DATABASE_HOST'] = 'localhost'
+app.config['MYSQL_DATABASE_USER'] = os.getenv('username')
+app.config['MYSQL_DATABASE_PASSWORD'] = os.getenv('pw')
+app.config['MYSQL_DATABASE_DB'] = os.getenv('dbname')
+app.config['MYSQL_DATABASE_HOST'] = os.getenv('dbhost')
 mysql = MySQL(app)
 
 def get_db_connection():
