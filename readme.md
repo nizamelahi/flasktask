@@ -1,4 +1,4 @@
-edit .env file with your  database details 
+edit .env file with your database details <br>
 db used: 
 https://github.com/datacharmer/test_db 
  
