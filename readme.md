@@ -5,7 +5,8 @@ https://github.com/datacharmer/test_db
 endpoints: 
  
 POST /employee/\<fname\>/\<lname\>/\<bdate\>/\<gender\>/\<salary\>/\<dno\>/\<title\>  <br>
-response (success/invalid dept_no) 
+response :
+success/invalid dept_no
  
 GET /employee_details 
 response: 
