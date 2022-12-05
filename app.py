@@ -1,24 +1,16 @@
-from flask import Flask, render_template
-from flask import Flask, render_template, jsonify
-from werkzeug.exceptions import abort
-from flaskext.mysql import MySQL
-from datetime import date,datetime
-import decimal
+from flask import Flask , jsonify,request
+from datetime import date
 from dotenv import load_dotenv
 from sqlalchemy.sql import text
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker,Session,class_mapper
+from sqlalchemy.sql.expression import func
 import os
-import json
-
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine,insert
 from sqlalchemy.ext.declarative import declarative_base
 
 engine = create_engine('mysql+pymysql://nizamelahi:1ft1kh2r@localhost/employees',)
 Base = declarative_base()
 Base.metadata.reflect(engine)
-
-
-from sqlalchemy.orm import relationship, backref
 
 
 class employees(Base):
@@ -33,14 +25,6 @@ class departments(Base):
     __table__ = Base.metadata.tables['departments']
 class titles(Base):
     __table__ = Base.metadata.tables['titles']
-
-
-def alchemyencoder(obj):
-    """JSON encoder function for SQLAlchemy special classes."""
-    if isinstance(obj, datetime.date):
-        return obj.isoformat()
-    elif isinstance(obj, decimal.Decimal):
-        return float(obj)
 
 load_dotenv()
 
@@ -58,64 +42,94 @@ def index():
 
 @app.route('/employee_details',methods=['GET'])
 def emp_details():
-    con=engine.connect()
-    data=con.execute('SELECT employees.emp_no, first_name, last_name, dept_emp.dept_no, departments.dept_name, title, salary\
-                    FROM employees\
-                    INNER JOIN dept_emp\
-                    ON employees.emp_no = dept_emp.emp_no\
-                    INNER JOIN departments\
-                    ON dept_emp.dept_no = departments.dept_no\
-                    INNER JOIN titles\
-                    ON employees.emp_no = titles.emp_no\
-                    INNER JOIN salaries\
-                    ON employees.emp_no = salaries.emp_no\
-                    ORDER BY first_name LIMIT 100')
-    
+
+    args=request.args
+    if args.get('limit'):
+            limit=args.get('limit')
+    else:
+        limit=100
+    if args.get('offset'):
+            offset=args.get('offset')
+    else:
+        offset=1
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    data=session.query(
+    employees.emp_no,employees.first_name,employees.last_name,dept_emp.dept_no,departments.dept_name,titles.title,salaries.salary
+    ).join(
+        dept_emp,  employees.emp_no==dept_emp.emp_no
+    ).join(
+        departments,  dept_emp.dept_no==departments.dept_no
+    ).join(
+        titles,  employees.emp_no==titles.emp_no
+    ).join(
+        salaries,  employees.emp_no==dept_emp.emp_no
+    ).limit(
+        limit
+    ).offset(
+        offset
+    )
     return jsonify([dict(r) for r in data])
 
 @app.route('/department_details',methods=['GET'])
 def dept_details():
-    con=engine.connect()
-    data=con.execute('SELECT departments.dept_no, departments.dept_name, employees.emp_no, employees.first_name, employees.last_name, from_date, to_date\
-                    FROM departments\
-                    INNER JOIN dept_manager\
-                    ON departments.dept_no = dept_manager.dept_no\
-                    INNER JOIN employees\
-                    ON dept_manager.emp_no = employees.emp_no\
-                    ORDER BY first_name LIMIT 100')
-    
+
+    args=request.args
+    if args.get('limit'):
+            limit=args.get('limit')
+    else:
+        limit=100
+    if args.get('offset'):
+            offset=args.get('offset')
+    else:
+        offset=1
+
+    Session = sessionmaker(bind=engine)
+    session = Session()
+    data=session.query(
+    departments.dept_no, departments.dept_name, employees.emp_no, employees.first_name, employees.last_name, dept_manager.from_date, dept_manager.to_date
+    ).join(
+        dept_manager,  departments.dept_no==dept_manager.dept_no
+    ).join(
+        employees,  dept_manager.emp_no==employees.emp_no
+    ).limit(
+        limit
+    ).offset(
+        offset
+    )
     return jsonify([dict(r) for r in data])
 
-@app.route('/employee/<fname>/<lname>/<bdate>/<gender>/<salary>/<dno>/<title>',methods=['POST'])
-def addemp(fname,lname,bdate,gender,salary,dno,title):
-    with engine.connect() as cursor:
-        data=cursor.execute('select dept_no\
-                        from departments\
-                        where dept_no like %s',dno)
-        if not ([dict(r) for r in data]) :
-            return ("invalid dept_no \n")
+@app.route('/employee/<fname>/<lname>/<bdate>/<gndr>/<sal>/<dno>/<ttl>',methods=['POST'])
+def addemp(fname,lname,bdate,gndr,sal,dno,ttl):
+    
+    db_session = scoped_session(sessionmaker(bind=engine))
+    dept_check=db_session.query(departments).filter(departments.dept_no==dno).first()
+    
+    if not dept_check  :
+        return ("invalid dept_no \n")
 
-        else:
-            data=cursor.execute('select MAX(emp_no)\
-                            from employees ')
-            empid=data.fetchone()[0] +1
-            empargs=(empid,bdate,fname,lname,gender,date.today())
-            cursor.execute('insert into employees (emp_no,birth_date,first_name,last_name,gender,hire_date)\
-                values(%s,%s,%s,%s,%s,%s)',empargs)
-            # cursor.commit()
-            dept_emp_args=(empid,dno,date.today(),"9999-01-01",)
-            cursor.execute('insert into dept_emp (emp_no,dept_no,from_date,to_date)\
-                values(%s,%s,%s,%s)',dept_emp_args)
-            # cursor.commit()
-            titles_args=(empid,title,date.today(),"9999-01-01",)
-            cursor.execute('insert into titles (emp_no,title,from_date,to_date)\
-                values(%s,%s,%s,%s)',titles_args)
-            # cursor.commit()
-            salaries_args=(empid,salary,date.today(),"9999-01-01",)
-            cursor.execute('insert into salaries (emp_no,salary,from_date,to_date)\
-                values(%s,%s,%s,%s)',salaries_args)
-            # cursor.commit()
+    else:
+        empid=int(str(db_session.query(func.max(employees.emp_no)).first()[0]))+1
 
-            
-            
-            return ("success\n")
+        empargs=(empid,bdate,fname,lname,gndr,date.today())
+        stmt= insert(employees).values(empargs)
+        db_session.execute(stmt)
+        db_session.commit()
+        
+        dept_emp_args=(empid,dno,date.today(),"9999-01-01",)
+        stmt=insert(dept_emp).values(dept_emp_args)
+        db_session.execute(stmt)
+        db_session.commit()
+
+        titles_args=(empid,ttl,date.today(),"9999-01-01",)
+        stmt=insert(titles).values(titles_args)
+        db_session.execute(stmt)
+        db_session.commit()
+
+        salaries_args=(empid,sal,date.today(),"9999-01-01",)
+        stmt=insert(salaries).values(salaries_args)
+        db_session.execute(stmt)
+        db_session.commit()
+
+        return ("success\n")
