@@ -1,7 +1,7 @@
 edit .env file with your database details <br>
 db used: 
-https://github.com/datacharmer/test_db 
- 
+https://github.com/datacharmer/test_db <br>
+use instructions on the page for installation<br>
 endpoints: 
  
 POST /employee/\<fname\>/\<lname\>/\<bdate\>/\<gender\>/\<salary\>/\<dno\>/\<title\>  <br>
