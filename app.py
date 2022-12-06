@@ -4,29 +4,83 @@ from dotenv import load_dotenv
 from sqlalchemy.sql import text
 from sqlalchemy.orm import scoped_session, sessionmaker,Session,class_mapper
 from sqlalchemy.sql.expression import func
-import os
 from sqlalchemy import create_engine,insert
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String,Date,Enum,CHAR,ForeignKey,PrimaryKeyConstraint
+import os
+load_dotenv()
 
-engine = create_engine('mysql+pymysql://nizamelahi:1ft1kh2r@localhost/employees',)
+engine = create_engine('mysql+pymysql://'+os.getenv('username')+':'+os.getenv('pw')+'@'+os.getenv('dbhost')+'/'+os.getenv('dbname'))
 Base = declarative_base()
-Base.metadata.reflect(engine)
+Session = sessionmaker(bind=engine)
+session = Session()
+
 
 
 class employees(Base):
-    __table__ = Base.metadata.tables['employees']
-class dept_emp(Base):
-    __table__ = Base.metadata.tables['dept_emp']
-class dept_manager(Base):
-    __table__ = Base.metadata.tables['dept_manager']
-class salaries(Base):
-    __table__ = Base.metadata.tables['salaries']
-class departments(Base):
-    __table__ = Base.metadata.tables['departments']
-class titles(Base):
-    __table__ = Base.metadata.tables['titles']
+    __tablename__ = 'employees'
+    emp_no =Column(Integer, primary_key=True,nullable=False)
+    birth_date=Column(Date,nullable=False)
+    first_name=Column(String(14),nullable=False)
+    last_name=Column(String(16),nullable=False)
+    gender=Column(Enum('M','F'),nullable=False)
+    hire_date=Column(Date,nullable=False)
 
-load_dotenv()
+    def __repr__(self):
+        return f'employee {self.first_name}'
+
+class departments(Base):
+    __tablename__ = 'departments'
+    dept_no=Column(CHAR(4),primary_key=True,nullable=False)
+    dept_name=Column(String(40),unique=True,nullable=False)
+
+    def __repr__(self):
+        return f'department {self.dept_name}'
+
+class dept_manager(Base):
+    __tablename__ = 'dept_manager'
+    emp_no=Column(Integer,ForeignKey(employees.emp_no,ondelete="CASCADE"),nullable=False)
+    dept_no=Column(CHAR(4),ForeignKey(departments.dept_no,ondelete="CASCADE"),nullable=False)
+    from_date=Column(Date,nullable=False)
+    to_date=Column(Date,nullable=False)
+    PrimaryKeyConstraint(emp_no, dept_no)
+
+    def __repr__(self):
+        return f'dept_manager {self.emp_no}'
+
+class dept_emp(Base):
+    __tablename__ = 'dept_emp'
+    emp_no =Column(Integer,ForeignKey(employees.emp_no,ondelete="CASCADE"),nullable=False)
+    dept_no=Column(CHAR(4),ForeignKey(departments.dept_no,ondelete="CASCADE"),nullable=False)
+    from_date=Column(Date,nullable=False)
+    to_date=Column(Date,nullable=False)
+    PrimaryKeyConstraint(emp_no, dept_no)
+    
+    def __repr__(self):
+        return f'dept_emp {self.emp_no}'
+
+class titles(Base):
+    __tablename__ = 'titles'
+    emp_no =Column(Integer,ForeignKey(employees.emp_no,ondelete="CASCADE"),nullable=False)
+    title=Column(String(50),nullable=False)
+    from_date=Column(Date,nullable=False)
+    to_date=Column(Date,nullable=True)
+    PrimaryKeyConstraint(emp_no, title,from_date)
+
+    def __repr__(self):
+        return f'title {self.title}'
+
+class salaries(Base):
+    __tablename__ = 'salaries'
+    emp_no =Column(Integer,ForeignKey(employees.emp_no,ondelete="CASCADE"),nullable=False)
+    salary=Column(Integer,nullable=False)
+    from_date=Column(Date,nullable=False)
+    to_date=Column(Date,nullable=True)
+    PrimaryKeyConstraint(emp_no,from_date)
+
+    def __repr__(self):
+        return f'salary {self.salary}'
+
 
 app = Flask(__name__)
 
@@ -38,8 +92,23 @@ def index():
     items=db_session.query(employees.first_name).limit(10)
     for item in items:
         print(item)
-    return("online")
+    return("online\n")
 
+@app.route('/create')
+def crt():
+    Base.metadata.create_all(engine)
+    return("created\n")
+
+
+@app.route('/add')
+def add():
+    department=departments(dept_no='0001',dept_name='data science')
+    session.add(department)
+    session.commit()
+    print(department.dept_name)
+
+
+    return('success\n')
 @app.route('/employee_details',methods=['GET'])
 def emp_details():
 
@@ -53,8 +122,6 @@ def emp_details():
     else:
         offset=0
 
-    Session = sessionmaker(bind=engine)
-    session = Session()
     data=session.query(
     employees.emp_no,employees.first_name,employees.last_name,dept_emp.dept_no,departments.dept_name,titles.title,salaries.salary
     ).join(
@@ -87,8 +154,6 @@ def dept_details():
     else:
         offset=0
 
-    Session = sessionmaker(bind=engine)
-    session = Session()
     data=session.query(
     departments.dept_no, departments.dept_name, employees.emp_no, employees.first_name, employees.last_name, dept_manager.from_date, dept_manager.to_date
     ).join(
@@ -107,33 +172,37 @@ def dept_details():
 @app.route('/employee/<fname>/<lname>/<bdate>/<gndr>/<sal>/<dno>/<ttl>',methods=['POST'])
 def addemp(fname,lname,bdate,gndr,sal,dno,ttl):
     
-    db_session = scoped_session(sessionmaker(bind=engine))
-    dept_check=db_session.query(departments).filter(departments.dept_no==dno).first()
+    
+    dept_check=session.query(departments).filter(departments.dept_no==dno).first()
     
     if not dept_check  :
         return ("invalid dept_no \n")
 
     else:
-        empid=int(str(db_session.query(func.max(employees.emp_no)).first()[0]))+1
-
-        empargs=(empid,bdate,fname,lname,gndr,date.today())
-        stmt= insert(employees).values(empargs)
-        db_session.execute(stmt)
-        db_session.commit()
+        emp_chk=session.query(func.max(employees.emp_no)).first()[0]
+        if emp_chk:
+            empid=int(str(emp_chk))+1
+        else :
+            empid=1
         
-        dept_emp_args=(empid,dno,date.today(),"9999-01-01",)
-        stmt=insert(dept_emp).values(dept_emp_args)
-        db_session.execute(stmt)
-        db_session.commit()
+        # empargs=(empid,bdate,fname,lname,gndr,date.today())
+        emp=employees(emp_no=empid,birth_date=bdate,first_name=fname,last_name=lname,gender=gndr,hire_date=date.today())
+        session.add(emp)
+        session.commit()
+        
+        # dept_emp_args=(empid,dno,date.today(),"9999-01-01")
+        deptemp=dept_emp(emp_no=empid,dept_no=dno,from_date=date.today(),to_date="9999-01-01")
+        session.add(deptemp)
+        session.commit()
 
-        titles_args=(empid,ttl,date.today(),"9999-01-01",)
-        stmt=insert(titles).values(titles_args)
-        db_session.execute(stmt)
-        db_session.commit()
+        # titles_args=(empid,ttl,date.today(),"9999-01-01",)
+        titl=titles(emp_no=empid,title=ttl,from_date=date.today(),to_date="9999-01-01")
+        session.add(titl)
+        session.commit()
 
-        salaries_args=(empid,sal,date.today(),"9999-01-01",)
-        stmt=insert(salaries).values(salaries_args)
-        db_session.execute(stmt)
-        db_session.commit()
+        # salaries_args=(empid,sal,date.today(),"9999-01-01",)
+        slr=salaries(emp_no=empid,salary=sal,from_date=date.today(),to_date="9999-01-01")
+        session.add(slr)
+        session.commit()
 
         return ("success\n")
