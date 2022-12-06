@@ -51,7 +51,7 @@ def emp_details():
     if args.get('offset'):
             offset=args.get('offset')
     else:
-        offset=1
+        offset=0
 
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -62,9 +62,11 @@ def emp_details():
     ).join(
         departments,  dept_emp.dept_no==departments.dept_no
     ).join(
-        titles,  employees.emp_no==titles.emp_no
+        titles,  titles.emp_no==employees.emp_no
     ).join(
-        salaries,  employees.emp_no==dept_emp.emp_no
+        salaries,  salaries.emp_no==employees.emp_no
+    ).order_by(
+        employees.emp_no
     ).limit(
         limit
     ).offset(
@@ -83,7 +85,7 @@ def dept_details():
     if args.get('offset'):
             offset=args.get('offset')
     else:
-        offset=1
+        offset=0
 
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -93,6 +95,8 @@ def dept_details():
         dept_manager,  departments.dept_no==dept_manager.dept_no
     ).join(
         employees,  dept_manager.emp_no==employees.emp_no
+    ).order_by(
+        departments.dept_no
     ).limit(
         limit
     ).offset(
