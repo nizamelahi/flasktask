@@ -1,5 +1,5 @@
 from flask import Flask , jsonify,request
-from datetime import date
+from datetime import date,datetime
 from dotenv import load_dotenv
 from sqlalchemy.sql import text
 from sqlalchemy.orm import scoped_session, sessionmaker,Session,class_mapper
@@ -11,6 +11,7 @@ import os
 load_dotenv()
 
 engine = create_engine('mysql+pymysql://'+os.getenv('username')+':'+os.getenv('pw')+'@'+os.getenv('dbhost')+'/'+os.getenv('dbname'))
+
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
 session = Session()
@@ -25,6 +26,7 @@ class employees(Base):
     last_name=Column(String(16),nullable=False)
     gender=Column(Enum('M','F'),nullable=False)
     hire_date=Column(Date,nullable=False)
+    # chkfield=Column(String,nullable=False)
 
     def __repr__(self):
         return f'employee {self.first_name}'
@@ -99,16 +101,6 @@ def crt():
     Base.metadata.create_all(engine)
     return("created\n")
 
-
-@app.route('/add')
-def add():
-    department=departments(dept_no='0001',dept_name='data science')
-    session.add(department)
-    session.commit()
-    print(department.dept_name)
-
-
-    return('success\n')
 @app.route('/employee_details',methods=['GET'])
 def emp_details():
 
@@ -169,7 +161,7 @@ def dept_details():
     )
     return jsonify([dict(r) for r in data])
 
-@app.route('/employee/<fname>/<lname>/<bdate>/<gndr>/<sal>/<dno>/<ttl>',methods=['POST'])
+@app.route('/add_employee/<fname>/<lname>/<bdate>/<gndr>/<sal>/<dno>/<ttl>',methods=['POST'])
 def addemp(fname,lname,bdate,gndr,sal,dno,ttl):
     
     
@@ -186,23 +178,74 @@ def addemp(fname,lname,bdate,gndr,sal,dno,ttl):
             empid=1
         
         # empargs=(empid,bdate,fname,lname,gndr,date.today())
-        emp=employees(emp_no=empid,birth_date=bdate,first_name=fname,last_name=lname,gender=gndr,hire_date=date.today())
+        emp=employees(emp_no=int(empid),birth_date=datetime.strptime(bdate, '%Y-%m-%d'),first_name=fname,last_name=lname,gender=gndr,hire_date=date.today())
         session.add(emp)
         session.commit()
         
         # dept_emp_args=(empid,dno,date.today(),"9999-01-01")
-        deptemp=dept_emp(emp_no=empid,dept_no=dno,from_date=date.today(),to_date="9999-01-01")
+        deptemp=dept_emp(emp_no=int(empid),dept_no=dno,from_date=date.today(),to_date=datetime.strptime("9999-01-01", '%Y-%m-%d'))
         session.add(deptemp)
         session.commit()
 
         # titles_args=(empid,ttl,date.today(),"9999-01-01",)
-        titl=titles(emp_no=empid,title=ttl,from_date=date.today(),to_date="9999-01-01")
+        titl=titles(emp_no=int(empid),title=ttl,from_date=date.today(),to_date=datetime.strptime("9999-01-01", '%Y-%m-%d'))
         session.add(titl)
         session.commit()
 
         # salaries_args=(empid,sal,date.today(),"9999-01-01",)
-        slr=salaries(emp_no=empid,salary=sal,from_date=date.today(),to_date="9999-01-01")
+        slr=salaries(emp_no=int(empid),salary=sal,from_date=date.today(),to_date=datetime.strptime("9999-01-01", '%Y-%m-%d'))
         session.add(slr)
         session.commit()
 
         return ("success\n")
+
+@app.route('/employee_update/<empid>',methods=['PUT'])
+def updt(empid):
+    employee=employee = session.query(employees).filter(employees.emp_no==empid).first()
+    if not employee  :
+        return ("invalid employee id \n")
+    else:
+        args=request.args
+        if args.get('fname'):
+                employee = session.query(employees).filter(employees.emp_no==empid).first()
+                setattr(employee, 'first_name', args.get('fname'))
+                session.commit()
+        if args.get('lname'):
+                employee = session.query(employees).filter(employees.emp_no==empid).first()
+                setattr(employee, 'last_name', args.get('lname'))
+                session.commit()
+        if args.get('bdate'):
+                employee = session.query(employees).filter(employees.emp_no==empid).first()
+                setattr(employee, 'birth_date', datetime.strptime(args.get('bdate'), '%Y-%m-%d'))
+                session.commit()
+        if args.get('gndr'):
+                employee = session.query(employees).filter(employees.emp_no==empid).first()
+                setattr(employee, 'gender', args.get('gndr'))
+                session.commit()
+        if args.get('sal'):
+                salary = session.query(salaries).filter(salaries.emp_no==empid).first()
+                setattr(salary, 'salary', args.get('sal'))
+                session.commit()
+        if args.get('dno'):
+                dept_check=session.query(departments).filter(departments.dept_no==args.get('dno')).first()
+                if not dept_check  :
+                    return ("invalid dept_no \n")
+                else:
+                    deptemp = session.query(dept_emp).filter(dept_emp.emp_no==empid).first()
+                    setattr(deptemp, 'dept_no', args.get('dno'))
+                    session.commit()
+        if args.get('ttl'):
+                titl = session.query(titles).filter(titles.emp_no==empid).first()
+                setattr(titl, 'title', args.get('ttl'))
+                session.commit()
+        return ("success\n")
+
+
+@app.route('/employee_delete/<empid>',methods=['DELETE'])
+def delt(empid):
+    employee=employee = session.query(employees).filter(employees.emp_no==empid).first()
+    if not employee  :
+        return ("invalid employee id \n")
+    session.delete(employee)
+    session.commit()
+    return("success\n")
