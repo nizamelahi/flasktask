@@ -2,12 +2,12 @@ from flask import Flask , jsonify,request
 from datetime import date,datetime
 from dotenv import load_dotenv
 from sqlalchemy.sql import text
-from sqlalchemy.orm import scoped_session, sessionmaker,Session,class_mapper
+from sqlalchemy.orm import scoped_session, sessionmaker,Session,class_mapper,relationship
 from sqlalchemy.sql.expression import func
 from sqlalchemy import create_engine,insert
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String,Date,Enum,CHAR,ForeignKey,PrimaryKeyConstraint
-import os
+import os,json
 load_dotenv()
 
 engine = create_engine('mysql+pymysql://'+os.getenv('username')+':'+os.getenv('pw')+'@'+os.getenv('dbhost')+'/'+os.getenv('dbname'))
@@ -35,6 +35,7 @@ class departments(Base):
     __tablename__ = 'departments'
     dept_no=Column(CHAR(4),primary_key=True,nullable=False)
     dept_name=Column(String(40),unique=True,nullable=False)
+    dept_emps= relationship("dept_emp",back_populates="departmentss")
 
     def __repr__(self):
         return f'department {self.dept_name}'
@@ -57,7 +58,7 @@ class dept_emp(Base):
     from_date=Column(Date,nullable=False)
     to_date=Column(Date,nullable=False)
     PrimaryKeyConstraint(emp_no, dept_no)
-    
+    departmentss = relationship("departments", back_populates="dept_emps")
     def __repr__(self):
         return f'dept_emp {self.emp_no}'
 
@@ -159,6 +160,7 @@ def dept_details():
     ).offset(
         offset
     )
+
     return jsonify([dict(r) for r in data])
 
 @app.route('/add_employee/<fname>/<lname>/<bdate>/<gndr>/<sal>/<dno>/<ttl>',methods=['POST'])
@@ -243,9 +245,21 @@ def updt(empid):
 
 @app.route('/employee_delete/<empid>',methods=['DELETE'])
 def delt(empid):
-    employee=employee = session.query(employees).filter(employees.emp_no==empid).first()
+
+    employee = session.query(employees).filter(employees.emp_no==empid).first()
     if not employee  :
         return ("invalid employee id \n")
     session.delete(employee)
     session.commit()
     return("success\n")
+
+@app.route('/deptemps/<dname>',methods=['GET'])
+def demp(dname):
+    dept_check=session.query(departments).filter(departments.dept_name==dname).first()
+    print(type(dept_check))
+    if not dept_check  :
+        return ("invalid department name \n")
+    for r in dept_check.dept_emps:
+        print((r.emp_no))
+    
+    return jsonify([({"emp_no":r.emp_no}) for r in dept_check.dept_emps])
