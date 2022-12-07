@@ -23,6 +23,10 @@ fname,lname,bdate,gndr,sal,dno,ttl
 response :
 success/invalid dept_no/invalid employee id
  
-DELETE /employee_delete/<empid> <br>
+DELETE /employee_delete/\<empid\> <br>
 response :
-success/invalid employee id
+success/invalid employee id 
+ 
+GET /deptemps/\<dname\>
+response :
+emp_no of employees in that dept / invalid dept_no
