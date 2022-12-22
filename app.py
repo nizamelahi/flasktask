@@ -7,17 +7,34 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String,Date,Enum,CHAR,ForeignKey,PrimaryKeyConstraint
 import os,json
-from model import*
+from model import *
 load_dotenv()
+print(os.getenv('env'))
 
-engine = create_engine('mysql+pymysql://'+os.getenv('username')+':'+os.getenv('pw')+'@'+os.getenv('dbhost')+'/'+os.getenv('dbname'))
+
+
+
+app = Flask(__name__)
+
+
+print(os.getenv('env'))
+if  os.getenv('env')=="test":
+    engine = create_engine(
+        "mysql+pymysql://{}:{}@{}/{}".format(
+            os.environ.get('testusr'),
+            os.environ.get('testpw'),
+            os.environ.get('dbhost'),
+            os.environ.get('testdb'),
+        )
+    )
+else:
+    print('normal')
+    engine = create_engine('mysql+pymysql://'+os.getenv('username')+':'+os.getenv('pw')+'@'+os.getenv('dbhost')+'/'+os.getenv('dbname'))
+
 
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
 session = Session()
-
-app = Flask(__name__)
-
 
 @app.route('/')
 
@@ -28,11 +45,6 @@ def index():
         print(item)
     return("online\n")
 
-@app.route('/create')
-def crt():
-    Base.metadata.drop_all(engine,checkfirst=True)
-    Base.metadata.create_all(engine,checkfirst=True)
-    return("created\n")
 
 @app.route('/employee_details',methods=['GET'])
 def emp_details():
@@ -188,11 +200,13 @@ def delt(empid):
 @app.route('/deptemps/<dname>',methods=['GET'])
 def demp(dname):
     dept_check=session.query(departments).filter(departments.dept_name==dname).first()
-    print(type(dept_check))
     if not dept_check  :
         return ("invalid department name \n")
+    a=0
     for r in dept_check.dept_emps:
-        print((r.emp_no))
-        print(r.employee.first_name)
+
+        a+=1
+        if a>100:
+            break
     
     return jsonify([({"emp_no":r.emp_no},{"fname":r.employee.first_name},{"lname":r.employee.last_name}) for r in dept_check.dept_emps])

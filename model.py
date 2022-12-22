@@ -1,4 +1,4 @@
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship,backref
 from sqlalchemy import create_engine,insert
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, String,Date,Enum,CHAR,ForeignKey,PrimaryKeyConstraint
@@ -17,7 +17,8 @@ class employees(Base):
     last_name=Column(String(16),nullable=False)
     gender=Column(Enum('M','F'),nullable=False)
     hire_date=Column(Date,nullable=False)
-    dept_emps= relationship("dept_emp",back_populates="employee")
+    dept_emps= relationship("dept_emp",cascade='all, delete-orphan')
+    salary= relationship("salaries",cascade='all, delete-orphan')
 
     # chkfield=Column(String,nullable=False)
 
@@ -28,8 +29,7 @@ class departments(Base):
     __tablename__ = 'departments'
     dept_no=Column(CHAR(4),primary_key=True,nullable=False)
     dept_name=Column(String(40),unique=True,nullable=False)
-    dept_emps= relationship("dept_emp",back_populates="departmentss")
-    loc=Column(CHAR(4),nullable=False)
+    dept_emps= relationship("dept_emp",cascade='all, delete-orphan')
     def __repr__(self):
         return f'department {self.dept_name}'
 
@@ -74,6 +74,7 @@ class salaries(Base):
     from_date=Column(Date,nullable=False)
     to_date=Column(Date,nullable=True)
     PrimaryKeyConstraint(emp_no,from_date)
+    # employee = relationship("employees", back_populates="salary")
 
     def __repr__(self):
         return f'salary {self.salary}'

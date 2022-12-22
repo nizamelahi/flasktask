@@ -1,5 +1,6 @@
 edit .env file with your database details <br>
 db generated via sqlalchemy <br>
+use alembic to perform migrations from model.py after db creation <br>
 use instructions on the page for installation<br><br>
 Endpoints: 
  
@@ -30,3 +31,6 @@ success/invalid employee id
 GET /deptemps/\<dname\>
 response :
 emp_no of employees in that dept / invalid dept_no
+ 
+ 
+for running tests, use empty db with the details stored in .env

@@ -3,7 +3,12 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 from model import Base
+from dotenv import load_dotenv
 
+import os
+import sys
+load_dotenv()
+sys.path.append("..")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -14,6 +19,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
+dburl="mysql+pymysql://{}:{}@{}/{}".format(
+            os.environ.get('username'),
+            os.environ.get('pw'),
+            os.environ.get('dbhost'),
+            os.environ.get('dbname'),
+        )
+config.set_main_option('sqlalchemy.url', dburl)
 # add your model's MetaData object here
 # for 'autogenerate' support
 # from myapp import mymodel
